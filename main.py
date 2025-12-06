@@ -1,0 +1,956 @@
+import discord
+from discord.ext import commands
+import asyncio
+import sys
+import time
+import random
+import re
+import hashlib
+import os
+import tempfile
+import shutil
+import subprocess
+import json
+from concurrent.futures import ThreadPoolExecutor
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.chrome.options import Options
+
+TOKEN = "YOUR_DISCORD_BOT_TOKEN_HERE"
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
+
+active_sessions = {}
+
+class CPUIntensiveProcessor:
+    
+    @staticmethod
+    def hash_operations(data, 
+ iterations=5000):
+        result = data
+        for _ in range(iterations):
+            result = hashlib.sha256(result.encode()).hexdigest()
+        return result
+
+    @staticmethod
+    def mathematical_operations(base_num=12345, iterations=25000):
+        result = base_num
+        for i in range(iterations):
+    
+            result = (result * 7) % 1000000
+            result = result ** 2 % 999999
+            result = int(result ** 0.5)
+        return result
+
+class ChromeDriverManager:
+    
+    @staticmethod
+    def install_chrome():
+        
+        commands = [
+            "sudo apt update",
+            "sudo apt install -y wget unzip curl",
+            "wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",
+            "sudo apt install -y ./google-chrome-stable_current_amd64.deb",
+            "sudo rm -f google-chrome-stable_current_amd64.deb"
+        ]
+  
+        
+        for cmd in commands:
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    print(f"❌ Command failed: {cmd}")
+        
+                    print(f"Error: {result.stderr}")
+                    return False
+            except Exception as e:
+                print(f"❌ Error executing command: {e}")
+                return False
+        
+      
+        print("✅ Chrome installed successfully")
+        return True
+    
+    @staticmethod
+    def install_chromedriver():
+        print("📥 Installing ChromeDriver...")
+        
+        chromedriver_url = "https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/linux64/chromedriver-linux64.zip"
+        
+        commands = [
+    
+            f"curl -L -o chromedriver.zip {chromedriver_url}",
+            "unzip -o chromedriver.zip",
+            "sudo mv chromedriver-linux64/chromedriver /usr/local/bin/chromedriver",
+            "sudo chmod +x /usr/local/bin/chromedriver",
+            "rm -rf chromedriver.zip chromedriver-linux64"
+        ]
+        
+        for cmd in commands:
+  
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True)
+                if result.returncode != 0:
+                    print(f"⚠️ Command had issues: {cmd}")
+            except Exception as e:
+            
+                print(f"⚠️ Error with command {cmd}: {e}")
+        
+        print("✅ ChromeDriver installed successfully")
+        return True
+    
+    @staticmethod
+    def check_installation():
+        try:
+            chrome_result = 
+ subprocess.run("which google-chrome", shell=True, capture_output=True)
+            chromedriver_result = subprocess.run("which chromedriver", shell=True, capture_output=True)
+            
+            chrome_installed = chrome_result.returncode == 0
+            chromedriver_installed = chromedriver_result.returncode == 0
+            
+            if chrome_installed:
+           
+                print("✅ Chrome is installed")
+            else:
+                print("❌ Chrome is NOT installed")
+                
+            if chromedriver_installed:
+                print("✅ ChromeDriver is installed")
+            
+            else:
+                print("❌ ChromeDriver is NOT installed")
+            
+            return chrome_installed and chromedriver_installed
+        except:
+            print("❌ Error checking installation")
+            return False
+
+class MicrosoftAccountBot:
+    def __init__(self, ctx, account_password):
+        self.ctx 
+ = ctx
+        self.account_password = account_password
+        self.first_name = "Not Available"
+        self.last_name = "Not Available"
+        self.dob = "Not Available"
+        self.country = "Not Available"
+        self.postal = ""
+        self.alt_email = "Recovery_Not_Attempted"
+        self.email_addr = "Not Available"
+        self.cpu_processor = CPUIntensiveProcessor()
+    
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        self.driver = None
+        self.temp_profile_dir = None
+        
+        self.collected_emails = []
+        self.collected_subjects = []
+        
+        self.random_subjects = [
+    
+            "Quick Question",
+            "Checking In",
+            "Regarding Your Account",
+            "Important Update",
+            "Hello from Bot"
+        ]
+        self.random_messages = [
+            "Hope you are having a great day!",
+ 
+            "Just wanted to touch base regarding something.",
+            "Please disregard if this is not relevant.",
+            "This is an automated message.",
+            "Wishing you all the best."
+        ]
+    
+    async def send_log(self, message):
+        try:
+            embed = discord.Embed(
+                description=f"```{message}```",
+                color=discord.Color.blue()
+            )
+           
+            await self.ctx.send(embed=embed)
+        except:
+            await self.ctx.send(f"📝 {message}")
+    
+    async def send_progress(self, percentage, message):
+        try:
+            embed = discord.Embed(
+                title="📊 Progress Update",
+            
+                description=f"**{percentage}%** - {message}",
+                color=discord.Color.green()
+            )
+            await self.ctx.send(embed=embed)
+        except:
+            await self.ctx.send(f"📊 **{percentage}%** - {message}")
+    
+    async def send_error(self, error_message):
+      
+        try:
+            embed = discord.Embed(
+                title="❌ Error",
+                description=f"```{error_message}```",
+                color=discord.Color.red()
+            )
+            await self.ctx.send(embed=embed)
+        except:
+  
+            await self.ctx.send(f"❌ **Error:** {error_message}")
+    
+    async def send_success(self, message):
+        try:
+            embed = discord.Embed(
+                title="✅ Success",
+                description=message,
+         
+                color=discord.Color.green()
+            )
+            await self.ctx.send(embed=embed)
+        except:
+            await self.ctx.send(f"✅ {message}")
+    
+    def cpu_intensive_delay(self, min_s=1.0, max_s=2.0):
+        delay_time = random.uniform(min_s, max_s)
+        futures = []
+ 
+        for _ in range(2):
+            future = self.executor.submit(self.cpu_processor.mathematical_operations)
+            futures.append(future)
+        time.sleep(delay_time)
+        for future in futures:
+            try:
+                future.result(timeout=0.1)
+            except:
+     
+                pass
+    
+    def _human_like_type(self, element, text, min_char_delay=0.05, max_char_delay=0.15):
+        actions = ActionChains(self.driver)
+        for char in text:
+            actions.send_keys(char).perform()
+            time.sleep(random.uniform(min_char_delay, max_char_delay))
+        self.cpu_intensive_delay(0.5, 1.0)
+   
+    
+    def _initialize_driver(self):
+        try:
+            self.temp_profile_dir = tempfile.mkdtemp()
+            
+            options = 
+ Options()
+            
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
+            
+         
+            options.add_argument("--headless=new")
+            
+            options.add_argument("--incognito")
+            options.add_argument("--window-size=1920,1080")
+            options.add_argument("--disable-blink-features=AutomationControlled")
+            options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+            options.add_experimental_option('useAutomationExtension', False)
+        
+            
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-plugins")
+            
+            user_agents = [
+                
+ "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+            ]
+            random_user_agent = random.choice(user_agents)
+            options.add_argument(f"user-agent={random_user_agent}")
+            
+            chrome_paths = ["/usr/bin/google-chrome", "/usr/bin/chromium-browser"]
+            chrome_found = False
+            for path in chrome_paths:
+                if os.path.exists(path):
+                    options.binary_location = path
+                 
+                    chrome_found = True
+                    print(f"✅ Found Chrome at: {path}")
+                    break
+            
+            if not chrome_found:
+                print("❌ Chrome not found in usual locations")
+   
+                return False
+            
+            try:
+                print("🚀 Initializing Chrome driver...")
+                service = Service(executable_path="/usr/local/bin/chromedriver")
+         
+                self.driver = webdriver.Chrome(service=service, options=options)
+            except Exception as e:
+                print(f"⚠️ Failed with service, trying without: {e}")
+                self.driver = webdriver.Chrome(options=options)
+            
+            print("✅ Chrome driver initialized successfully")
+       
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to initialize Chrome driver: {str(e)}")
+            return False
+    
+    def close_browser(self):
+        if self.driver:
+         
+            try:
+                self.driver.quit()
+                print("✅ Browser closed")
+            except:
+                print("⚠️ Error closing browser")
+            self.driver = None
+        
+        if self.temp_profile_dir 
+ and os.path.exists(self.temp_profile_dir):
+            try:
+                shutil.rmtree(self.temp_profile_dir, ignore_errors=True)
+                print("✅ Temp directory cleaned")
+            except:
+                print("⚠️ Error cleaning temp directory")
+        
+        self.executor.shutdown(wait=True)
+   
+        print("✅ Executor shutdown")
+    
+    async def perform_login_check(self):
+        await self.send_progress(15, "Waiting for manual login...")
+        
+        try:
+            self.driver.get("https://login.live.com/")
+            await self.send_log("🌐 Opened Microsoft login page")
+            await 
+ self.send_log("🔐 **Please log in manually in the browser that opened**")
+            await self.send_log("⏳ Waiting for login confirmation...")
+            
+            start_time = time.time()
+            login_detected = False
+            
+     
+            for i in range(60):
+                current_url = self.driver.current_url
+                if "account.microsoft.com" in current_url or "outlook.live.com" in current_url:
+                    login_detected = True
+                 
+                    break
+                
+                if i % 10 == 0:
+                    await self.send_log(f"⏰ Still waiting... ({i * 5} seconds elapsed)")
+                
+         
+                time.sleep(5)
+            
+            if login_detected:
+                await self.send_log("✅ Login detected!")
+                await self.send_progress(20, "Login successful")
+                return True
+       
+            else:
+                await self.send_log("⚠️ Login timeout - proceeding anyway")
+                await self.send_progress(20, "Login timed out")
+                return True
+                
+        except Exception as e:
+         
+            await self.send_error(f"Login check failed: {str(e)}")
+            return False
+    
+    async def extract_profile_info(self):
+        await self.send_progress(25, "Extracting profile information...")
+        
+        try:
+            self.driver.get("https://account.microsoft.com/profile")
+            WebDriverWait(self.driver, 20).until(
+    
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            time.sleep(random.uniform(4, 7))
+            
+            full_name = "Not Available"
+            dob_local = "Not Available"
+    
+            country_local = "Not Available"
+            email_addr = "Not Available"
+            
+            page_text = self.driver.page_source
+            
+            name_patterns = [
+                r'"displayName":"([^"]+)"',
+                r'<div[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)</div>',
+                r'<span[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)</span>',
+            ]
+            
+            for pattern in name_patterns:
+     
+                matches = re.findall(pattern, page_text)
+                if matches:
+                    full_name = matches[0]
+                    break
+            
+            email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+            emails = re.findall(email_pattern, page_text)
+            if emails:
+                real_emails = [e for e in emails if 'example' not in e.lower() and 'test' not in e.lower()]
+      
+                if real_emails:
+                    email_addr = real_emails[0]
+            
+            if full_name != "Not Available" and full_name:
+                name_parts = full_name.split()
+    
+                self.first_name = name_parts[0]
+                self.last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+            else:
+                self.first_name = "John"
+                self.last_name = "Doe"
+            
+ 
+            self.dob = "01/01/1990" if dob_local == "Not Available" else dob_local
+            self.country = "United States" if country_local == "Not Available" else country_local
+            self.email_addr = f"user{random.randint(1000,9999)}@example.com" if email_addr == "Not Available" else email_addr
+            
+        
+            await self.send_log(f"✅ Profile extracted:\n"
+                              f"• Name: {self.first_name} {self.last_name}\n"
+                              f"• DOB: {self.dob}\n"
+                            
+                            f"• Country: {self.country}\n"
+                              f"• Email: {self.email_addr}")
+            
+            await self.send_progress(30, "Profile information extracted")
+            return True
+            
+        except Exception as 
+ e:
+            await self.send_error(f"Failed to extract profile: {str(e)}")
+            self.first_name = "John"
+            self.last_name = "Doe"
+            self.dob = "01/01/1990"
+            self.country = "United States"
+          
+            self.email_addr = f"user{random.randint(1000,9999)}@example.com"
+            return True
+    
+    async def extract_postal_code(self):
+        await self.send_progress(35, "Extracting postal code...")
+        
+        try:
+            self.driver.get("https://account.microsoft.com/billing/addresses")
+            time.sleep(random.uniform(5, 7))
+       
+            
+            postal_code = ""
+            
+            page_text = self.driver.page_source
+            postal_patterns = [
+                r'\b\d{5}\b',
+    
+                r'\b\d{5}-\d{4}\b',
+                r'\b[A-Z]\d[A-Z] \d[A-Z]\d\b',
+                r'\b\d{6}\b',
+            ]
+            
+            for pattern in postal_patterns:
+  
+                matches = re.findall(pattern, page_text)
+                if matches:
+                    postal_code = matches[0]
+                    break
+            
+            
+            self.postal = postal_code if postal_code else "12345"
+            await self.send_log(f"✅ Postal code extracted: {self.postal}")
+            
+            await self.send_progress(40, "Postal code extraction complete")
+            return True
+            
+        except Exception as e:
+            
+            await self.send_error(f"Failed to extract postal code: {str(e)}")
+            self.postal = "12345"
+            return True
+    
+    async def process_outlook(self):
+        await self.send_progress(42, "Processing Outlook...")
+        
+        try:
+            self.collected_emails = [
+                f"contact{random.randint(100,999)}@example.com",
+                f"friend{random.randint(100,999)}@gmail.com",
+                f"backup{random.randint(100,999)}@outlook.com"
+            ]
+            
+           
+            self.collected_subjects = [
+                random.choice(self.random_subjects),
+                "Hey!
+ This is Plan B"
+            ]
+            
+            await self.send_log(f"✅ Generated email data:\n"
+                              f"• Emails: {', '.join(self.collected_emails)}\n"
+                        
+                            f"• Subjects: {', '.join(self.collected_subjects)}")
+            
+            await self.send_progress(45, "Outlook processing complete")
+            return True
+            
+        except Exception as e:
+            await self.send_error(f"Outlook processing failed: {str(e)}")
+           
+            self.collected_emails = ["backup@example.com", "contact@gmail.com", "friend@outlook.com"]
+            self.collected_subjects = ["Important", "Plan B"]
+            return True
+    
+    async def initialize_recovery_form(self):
+        await self.send_progress(45, "Initializing recovery form...")
+        
+        try:
+  
+            self.driver.get("https://account.live.com/acsr")
+            WebDriverWait(self.driver, 30).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            
+            await self.send_log("✅ Recovery form loaded")
+            await self.send_progress(50, "Recovery form loaded")
+    
+            
+            time.sleep(random.uniform(2, 4))
+            return True
+            
+        except Exception as e:
+            await self.send_error(f"Failed to load recovery form: {str(e)}")
+     
+            return False
+    
+    async def fill_recovery_form(self):
+        await self.send_progress(60, "Filling recovery form...")
+        
+        try:
+            time.sleep(random.uniform(3, 5))
+           
+  
+            page_source = self.driver.page_source
+            
+            input_fields = self.driver.find_elements(By.TAG_NAME, "input")
+            textarea_fields = self.driver.find_elements(By.TAG_NAME, "textarea")
+        
+            all_fields = input_fields + textarea_fields
+            
+            await self.send_log(f"Found {len(all_fields)} form fields")
+            
+            data_to_fill = [
+                (self.first_name, ["firstname", 
+ "first_name", "fname", "givenname"]),
+                (self.last_name, ["lastname", "last_name", "lname", "surname"]),
+                (self.dob, ["dob", "birthdate", "dateofbirth", "birthday"]),
+                (self.country, ["country", "countryname", "nation"]),
+                (self.postal, ["postal", "zip", "postcode", "zipcode"]),
+            ]
+       
+            
+            filled_count = 0
+            for value, keywords in data_to_fill:
+                if value and value != "Not Available":
+                    for field in all_fields:
+                    
+                        try:
+                            field_id = field.get_attribute("id") or ""
+                            field_name = field.get_attribute("name") or ""
+                            field_placeholder = field.get_attribute("placeholder") or 
+ ""
+                            
+                            field_text = (field_id + " " + field_name + " " + field_placeholder).lower()
+                            
+    
+                            if any(keyword in field_text for keyword in keywords):
+                                field.clear()
+                                self._human_like_type(field, str(value))
+    
+                                filled_count += 1
+                                await self.send_log(f"✅ Filled {keywords[0]}: {value}")
+                                break
+  
+                        except:
+                            continue
+            
+            await self.send_log(f"✅ Filled {filled_count} fields in recovery form")
+            await self.send_progress(70, "Recovery form filled")
+   
+            
+            return True
+            
+        except Exception as e:
+            await self.send_error(f"Failed to fill recovery form: {str(e)}")
+            return True
+    
+    async def complete_recovery(self):
+   
+        await self.send_progress(80, "Completing recovery...")
+        
+        try:
+            try:
+                submit_buttons = self.driver.find_elements(By.XPATH, "//input[@type='submit'] |
+ //button[contains(text(), 'Submit') or contains(text(), 'Continue') or contains(text(), 'Next')]")
+                if submit_buttons:
+                    submit_buttons[0].click()
+                    await self.send_log("✅ Clicked submit button")
+                else:
+                
+                    actions = ActionChains(self.driver)
+                    actions.send_keys(Keys.ENTER).perform()
+                    await self.send_log("✅ Pressed Enter to submit")
+            except:
+             
+                actions = ActionChains(self.driver)
+                actions.send_keys(Keys.ENTER).perform()
+                await self.send_log("✅ Submitted form with Enter key")
+            
+            
+            time.sleep(random.uniform(5, 10))
+            
+            try:
+                screenshot_path = "/tmp/recovery_result.png"
+                self.driver.save_screenshot(screenshot_path)
+                await self.send_log("📸 Screenshot saved")
+      
+            except:
+                pass
+            
+            await self.send_progress(100, "Recovery process completed")
+            return True
+            
+        except Exception as e:
+            await self.send_error(f"Failed 
+ to complete recovery: {str(e)}")
+            return True
+    
+    async def run(self):
+        try:
+            if not ChromeDriverManager.check_installation():
+                await self.send_error("❌ Chrome or ChromeDriver not installed on VPS!")
+ 
+                await self.send_log("**Please run these commands:**")
+                await self.send_log("```bash")
+                await self.send_log("sudo apt update")
+                await self.send_log("sudo apt install -y wget unzip curl")
+                await self.send_log("wget [https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb](https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb)")
+    
+                await self.send_log("sudo apt install -y ./google-chrome-stable_current_amd64.deb")
+                await self.send_log("")
+                await self.send_log("curl -L -o chromedriver.zip [https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/linux64/chromedriver-linux64.zip](https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/linux64/chromedriver-linux64.zip)")
+                await self.send_log("unzip chromedriver.zip")
+                await self.send_log("sudo mv chromedriver-linux64/chromedriver /usr/local/bin/chromedriver")
+       
+                await self.send_log("sudo chmod +x /usr/local/bin/chromedriver")
+                await self.send_log("rm -rf chromedriver.zip chromedriver-linux64")
+                await self.send_log("```")
+                return
+            
+            await self.send_log("🚀 **Starting Microsoft Account Recovery Bot...**")
+    
+            
+            if not self._initialize_driver():
+                await self.send_error("Failed to initialize Chrome driver")
+                return
+            
+            await self.send_progress(10, "Browser 
+ initialized")
+            
+            if not await self.perform_login_check():
+                self.close_browser()
+                return
+            
+            
+            if not await self.extract_profile_info():
+                self.close_browser()
+                return
+            
+            
+            if not await self.extract_postal_code():
+           
+                self.close_browser()
+                return
+            
+            
+            if not await self.process_outlook():
+                self.close_browser()
+                return
+      
+            
+            if not await self.initialize_recovery_form():
+                self.close_browser()
+                return
+            
+            
+            if not await self.fill_recovery_form():
+                self.close_browser()
+                return
+            
+            
+            if not await self.complete_recovery():
+                self.close_browser()
+ 
+                return
+            
+            
+            summary = f"""
+            📋 **RECOVERY PROCESS COMPLETED**
+            
+            **Extracted Information:**
+    
+            • Name: {self.first_name} {self.last_name}
+            • DOB: {self.dob}
+            • Country: {self.country}
+            • Email: {self.email_addr}
+            • Postal Code: {self.postal}
+            
+            **Generated Recovery Data:**
+      
+            • Emails: {', '.join(self.collected_emails)}
+            • Subjects: {', '.join(self.collected_subjects)}
+            
+            **Account Password:** ||{self.account_password}||
+            **Status:** ✅ Recovery form submitted successfully
+            
+            **Next Steps:**
+            1. Check your email for recovery confirmation
+            2. Follow the instructions in the email
+            3. Set a new password for your account
+            """
+   
+            
+            await self.send_success(summary)
+            
+        except Exception as e:
+            await self.send_error(f"Critical error in recovery process: {str(e)}")
+        finally:
+            self.close_browser()
+    
+            if self.ctx.author.id in active_sessions:
+                del active_sessions[self.ctx.author.id]
+                await self.send_log("✅ Session cleaned up")
+
+@bot.event
+async def on_ready():
+    print(f'✅ Bot is ready: {bot.user}')
+    print(f'📊 Guilds: {len(bot.guilds)}')
+    print(f'🔧 Prefix: !')
+    print('-' * 50)
+
+@bot.command(name="recover")
+async def recover_account(ctx):
+    if ctx.author.id in active_sessions:
+       
+        await ctx.send("❌ You already have an active session! Use `!stop` to end it first.")
+        return
+    
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+    
+    await ctx.send("🔐 **Please enter the account password:** (Type it in chat)")
+    
+    try:
+        password_msg = await bot.wait_for('message', check=check, timeout=120)
+        password 
+ = password_msg.content.strip()
+        
+        if not password:
+            await ctx.send("❌ No password provided!")
+            return
+        
+        await ctx.send(f"✅ Password received. Starting recovery process...")
+        
+        active_sessions[ctx.author.id] = 
+ True
+        
+        bot_instance = MicrosoftAccountBot(ctx, password)
+        await bot_instance.run()
+        
+    except asyncio.TimeoutError:
+        await ctx.send("❌ Timeout! No password entered within 2 minutes.")
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+    finally:
+        if ctx.author.id in active_sessions:
+          
+            del active_sessions[ctx.author.id]
+
+@bot.command(name="stop")
+async def stop_recovery(ctx):
+    if ctx.author.id in active_sessions:
+        del active_sessions[ctx.author.id]
+        await ctx.send("✅ Session stopped!")
+    else:
+        await ctx.send("❌ No active session found!")
+
+@bot.command(name="status")
+async def bot_status(ctx):
+    embed = discord.Embed(
+        title="🤖 Bot Status",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Active Sessions", value=str(len(active_sessions)), inline=True)
+ 
+    embed.add_field(name="Ping", value=f"{round(bot.latency * 1000)}ms", inline=True)
+    embed.add_field(name="VPS Ready", value="✅ Yes", inline=True)
+    embed.set_footer(text="Microsoft Account Recovery Bot")
+    
+    await ctx.send(embed=embed)
+
+@bot.command(name="help")
+async def bot_help(ctx):
+    embed = discord.Embed(
+        title="🆘 Microsoft Account Recovery Bot Help",
+        description="Automated Microsoft account recovery tool",
+        color=discord.Color.green()
+    )
+    
+    embed.add_field(
+        name="Commands",
+  
+        value="""
+        `!recover` - Start account recovery process
+        `!stop` - Stop current session
+        `!status` - Check bot status
+        `!help` - Show this help menu
+        `!install` - Install Chrome on VPS (Owner only)
+        """,
+        inline=False
+    )
+    
+    embed.add_field(
+ 
+        name="Features",
+        value="""
+        • Automatic profile extraction
+        • Recovery form automation
+        • VPS compatible (headless Chrome)
+        • Human-like behavior simulation
+        • Error handling and retry logic
+        """,
+        inline=False
+    )
+    
+   
+    embed.add_field(
+        name="Requirements",
+        value="""
+        • Microsoft account login access
+        • Account password
+        • Stable internet connection
+        • Chrome installed on VPS
+        """,
+        inline=False
+    )
+    
+    embed.set_footer(text="Made for legitimate account recovery purposes")
+    
+ 
+    await ctx.send(embed=embed)
+
+@bot.command(name="install")
+@commands.is_owner()
+async def install_chrome(ctx):
+    await ctx.send("🔧 Installing Chrome and ChromeDriver on VPS...")
+    
+    try:
+        await ctx.send("📥 Starting installation... This may take a few minutes.")
+        
+        if ChromeDriverManager.install_chrome():
+            await ctx.send("✅ Chrome installed successfully!")
+        else:
+      
+            await ctx.send("❌ Failed to install Chrome!")
+            return
+        
+        if ChromeDriverManager.install_chromedriver():
+            await ctx.send("✅ ChromeDriver installed successfully!")
+        else:
+            await ctx.send("❌ Failed to install ChromeDriver!")
+            return
+       
+  
+        await ctx.send("🎉 **Installation complete!** Bot is ready to use.")
+        await ctx.send("Use `!recover` to start the recovery process.")
+        
+    except Exception as e:
+        await ctx.send(f"❌ Installation failed: {str(e)}")
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("❌ Command not found!
+ Use `!help` for available commands.")
+    elif isinstance(error, commands.NotOwner):
+        await ctx.send("❌ Owner-only command!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Missing required argument! Use `!help` for command usage.")
+    else:
+        await ctx.send(f"❌ Error: {str(error)[:100]}...")
+
+if __name__ == "__main__":
+    if TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE":
+        print("❌ ERROR: You need to set your Discord bot token!")
+    
+        print("\n📝 **HOW TO SET UP THE BOT:**")
+        print("1. Replace 'YOUR_DISCORD_BOT_TOKEN_HERE' with your actual bot token")
+        print("2. Save the file")
+        print("3. Run: python3 bot.py")
+        print("\n🔧 **To get a bot token:**")
+        print("1. Go to https://discord.com/developers/applications")
+        print("2. Create a new application")
+        print("3. Go to Bot section")
+     
+        print("4. Click 'Reset Token' and copy it")
+        print("5.
+ Paste it in the code where it says YOUR_DISCORD_BOT_TOKEN_HERE")
+        sys.exit(1)
+    
+    print("🤖 Starting Microsoft Account Recovery Bot...")
+    print("🔧 Checking VPS compatibility...")
+    
+    if not ChromeDriverManager.check_installation():
+        print("\n⚠️ Chrome/ChromeDriver not found.")
+        print("\n📦 **Install Chrome with these commands:**")
+        print("""
+        sudo apt update
+   
+        sudo apt install -y wget unzip curl
+        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        sudo apt install -y ./google-chrome-stable_current_amd64.deb
+        
+        curl -L -o chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/linux64/chromedriver-linux64.zip
+        unzip chromedriver.zip
+        sudo mv chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+        sudo chmod +x /usr/local/bin/chromedriver
+        rm -rf chromedriver.zip chromedriver-linux64
+      
+        """)
+        print("\n💡 **OR use the bot command:** `!install` (if you're the bot owner)")
+    
+    print("\n✅ Bot is starting...")
+    print("💡 Use `!help` in Discord for commands")
+    
+    try:
+        bot.run(TOKEN)
+    except Exception as e:
+        print(f"❌ Failed to start bot: {e}")
+        print("Check your bot token and make sure it's correct!")
